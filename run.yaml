@@ -16,16 +16,16 @@ run:
       pip install autoawq>=0.2.6
       pip install vllm>=0.6.3
       pip install flash-attn>=2.6.3
-    workdir: /code/rag-chatbot
+    workdir: /code
   - command: |
       python -m vllm.entrypoints.openai.api_server --model $MODEL_NAME --dtype auto --gpu-memory-utilization 0.8 &
-    workdir: /code/rag-chatbot
+    workdir: /code
   - command: |
       pip install -r requirements.txt
-    workdir: /code/rag-chatbot
+    workdir: /code
   - command: |
       python app.py --llm-host http://localhost:8000/v1
-    workdir: /code/rag-chatbot
+    workdir: /code
 ports:
   - name: gradio
     type: http
