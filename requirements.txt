@@ -1,4 +1,5 @@
 chromadb>=0.4.24
+fire>=0.7.0
 gradio==4.44.1
 langchain>=0.1.17
 langchain-community>=0.1.17
