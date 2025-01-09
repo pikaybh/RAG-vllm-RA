@@ -271,8 +271,8 @@ def main(args: argparse.Namespace):
     demo.queue().launch(
         server_name="0.0.0.0",
         server_port=args.port,
-        ssl_keyfile="key.pem",  # SSL 비공개 키 파일 경로
-        ssl_certfile="cert.pem"  # SSL 인증서 파일 경로
+        # ssl_keyfile="key.pem",  # SSL 비공개 키 파일 경로
+        # ssl_certfile="cert.pem"  # SSL 인증서 파일 경로
     )
 
 

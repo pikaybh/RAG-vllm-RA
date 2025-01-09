@@ -3,16 +3,20 @@ description: RAG chatbot
 tags:
   - RAG
   - LLM
+  - RESTful API
 resources:
   cluster: snu-eng-dgx
   preset: a100-1
-image: PyTorch 2.3.1 (CUDA 12.1)  # quay.io/vessl-ai/torch:2.3.1-cuda12.1-r5
+  node_names:
+    - snuengdgx001
+    - snuengdgx002
+    - snuengdgx003
+    - snuengdgx004
+image: quay.io/vessl-ai/torch:2.3.1-cuda12.1-r5  # PyTorch 2.3.1 (CUDA 12.1)
 import:
   /code/:
     git:
       url: https://github.com/pikaybh/RAG-vllm-RA.git
-  /certs/:
-    local: ./certs  # SSL 인증서가 있는 로컬 경로
 run:
   - command: |  # Install some dependencies for LLM acceleration those have conflicts with common libraries
       pip install autoawq>=0.2.6
@@ -30,7 +34,7 @@ run:
     workdir: /code
 ports:
   - name: api
-    type: https
+    type: http
     port: 7860
   - name: vllm
     type: http
