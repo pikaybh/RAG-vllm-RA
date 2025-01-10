@@ -1,0 +1,47 @@
+name: rag-api
+description: RAG llama API
+tags:
+  - RAG
+  - LLM
+  - RESTful API
+resources:
+  cluster: snu-eng-dgx
+  preset: a100-1  # 1 GPU (NVIDIA A100)
+  node_names:
+    - snuengdgx001
+    - snuengdgx002
+    - snuengdgx003
+    - snuengdgx004
+image: quay.io/vessl-ai/torch:2.3.1-cuda12.1-r5  # PyTorch 2.3.1 (CUDA 12.1)
+import:
+  /code/:
+    git:
+      url: https://github.com/pikaybh/RAG-vllm-RA.git
+run:
+  - command: |  # Install some dependencies for LLM acceleration those have conflicts with common libraries
+      apt-get update && apt-get upgrade -y
+      pip install autoawq>=0.2.6
+      pip install vllm>=0.6.3
+      pip install flash-attn>=2.6.3
+    workdir: /code
+  - command: |  # python -m vllm.entrypoints.openai.api_server --model $MODEL_NAME --dtype auto --gpu-memory-utilization 0.8 &
+      python -m vllm.entrypoints.openai.api_server \
+        --model $MODEL_NAME \
+        --max-model-len 2048 \
+        --tensor-parallel-size 2
+    workdir: /code
+  # - command: |
+  #     pip install -r requirements.txt
+  #   workdir: /code/runs/rag-api
+  # - command: |
+  #     python app.py --llm-host http://localhost:8000/v1
+  #   workdir: /code/runs/rag-api
+ports:
+  # - name: api
+  #   type: http
+  #   port: 7860
+  - name: vllm
+    type: http
+    port: 8000
+env:
+  MODEL_NAME: yanolja/EEVE-Korean-Instruct-10.8B-v1.0  # casperhansen/llama-3-8b-instruct-awq

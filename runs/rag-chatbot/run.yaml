@@ -3,10 +3,9 @@ description: RAG chatbot
 tags:
   - RAG
   - LLM
-  - RESTful API
 resources:
   cluster: snu-eng-dgx
-  preset: a100-1
+  preset: a100-1  # 1 GPU (NVIDIA A100)
   node_names:
     - snuengdgx001
     - snuengdgx002
@@ -28,12 +27,12 @@ run:
     workdir: /code
   - command: |
       pip install -r requirements.txt
-    workdir: /code
+    workdir: /code/runs/rag-chatbot
   - command: |
       python app.py --llm-host http://localhost:8000/v1
-    workdir: /code
+    workdir: /code/runs/rag-chatbot
 ports:
-  - name: api
+  - name: gradio
     type: http
     port: 7860
   - name: vllm

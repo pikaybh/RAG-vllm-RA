@@ -1,32 +1,31 @@
 name: rag-chatbot
-description: RAG chatbot
-tags:
-  - RAG
-  - LLM
+message: Quickstart to serve Llama 3.1 model with RAG.
+# description: RAG chatbot
+# tags:
+#   - RAG
+#   - LLM
 resources:
   cluster: snu-eng-dgx
   preset: a100-1
 image: quay.io/vessl-ai/torch:2.3.1-cuda12.1-r5  # PyTorch 2.3.1 (CUDA 12.1)
 import:
-  /code/:
-    git:
-      url: https://github.com/pikaybh/RAG-vllm-RA.git
+  /app: git://github.com/pikaybh/RAG-vllm-RA.git
 run:
   - command: |  # Install some dependencies for LLM acceleration those have conflicts with common libraries
       apt update && apt install -y libgl1
       pip install autoawq>=0.2.6
       pip install vllm>=0.6.3
       pip install flash-attn>=2.6.3
-    workdir: /code
+    workdir: /app
   - command: |
       vllm serve $MODEL_NAME --dtype auto --gpu-memory-utilization 0.8 &
-    workdir: /code
+    workdir: /app
   - command: |
       pip install -r requirements.txt
-    workdir: /code
+    workdir: /app
   - command: |
       python app_gradio.py --llm-host http://localhost:8000/v1
-    workdir: /code
+    workdir: /app
 ports:
   - name: gradio
     type: http
@@ -34,6 +33,9 @@ ports:
   - name: vllm
     type: http
     port: 8000
+  - name: metrics
+    type: http
+    port: 5000
 service:
   autoscaling:
     max: 2
@@ -43,8 +45,6 @@ service:
   monitoring:
     - port: 5000
       path: /metrics
-  expose:
-    - 7860
-    - 5000
+  expose: 7860
 env:
   MODEL_NAME: casperhansen/llama-3-8b-instruct-awq
