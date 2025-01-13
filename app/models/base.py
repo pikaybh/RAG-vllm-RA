@@ -3,7 +3,7 @@
 import os
 from typing import List
 
-from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_core.vectorstores import InMemoryVectorStore
 
 
@@ -40,11 +40,11 @@ class BaseModel:
         self.loaders = os.path.join(ROOT_DIR, BASE_DIR)
 
     @property
-    def loaders(self) -> List[PyPDFLoader]:
+    def loaders(self) -> List[PyMuPDFLoader]:
         """Gets the list of document loaders.
 
         Returns:
-            List[PyPDFLoader]: The list of document loaders.
+            List[PyMuPDFLoader]: The list of document loaders.
         """
         return self._loaders
 
@@ -68,7 +68,7 @@ class BaseModel:
         self._loaders = []
         for file in os.listdir(path):
             if os.path.splitext(file)[-1].lower() in FILE_FORMATS:
-                self._loaders.append(PyPDFLoader(os.path.join(path, file)))
+                self._loaders.append(PyMuPDFLoader(os.path.join(path, file)))
 
     def risk_assessment(self):
         """Performs risk assessment logic for the agent.

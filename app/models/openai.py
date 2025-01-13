@@ -6,6 +6,8 @@ from langchain.chat_models import ChatOpenAI
 from langchain.embeddings import OpenAIEmbeddings
 from langchain_core.vectorstores import InMemoryVectorStore
 
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
 from models.base import BaseModel
 from utils import build_prompt, payloader
 
@@ -35,10 +37,20 @@ class OpenAIModel(BaseModel):
 
         # Initialize Retriever
         self.retreiver = self.ra_db.as_retriever()
+        self.docs = self.retreiver.get_relevant_documents(query)
 
     def _build_ra_db(self):
+        data = self.loaders[0].load(),  # docucments
+        print(data)
+
+        documents = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+            chunk_size=1000,
+            chunk_overlap=200,
+            encoding_name='cl100k_base'
+        ).split_documents(data[0])
+
         self.ra_db = InMemoryVectorStore.from_documents(
-            self.loaders[0].load(),  # docucments
+            documents=documents,
             embedding=self.embeddings
         )
 
@@ -54,8 +66,13 @@ class OpenAIModel(BaseModel):
         
         return prompt | self.model | self.retreiver
 
+
+
+def format_docs(docs):
+    return '\n\n'.join([d.page_content for d in docs])
+
 if __name__ == "__main__":
     model = OpenAIModel(model_id="openai/gpt-4o")
     gpt_rag_chain = model.risk_assessment()
-    gpt_rag_chain.invoke({"input": "철근 배근 작업"})
+    gpt_rag_chain.invoke({"": (format_docs()), "input": "철근 배근 작업"})
 
