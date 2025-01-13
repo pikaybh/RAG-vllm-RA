@@ -1,4 +1,4 @@
-# VESSL examples
+# VESSL Llama RAG Risk Assessment
 This repository contains examples of how to use [VESSL](https://www.vessl.ai/). If you want to learn more about VESSL, please follow the [quick start documentation](https://docs.vessl.ai/guides/get-started/quickstart).
 
 Each directory contains the examples of corresponding features, such as [VESSL Run](https://docs.vessl.ai/guides/run/overview), [VESSL Service](https://docs.vessl.ai/guides/serve/overview), and [VESSL Pipeline](https://docs.vessl.ai/guides/pipeline/overview). If you want to dive into them more, please refer to the docs.
@@ -31,6 +31,14 @@ vessl run create -f run.yaml
 
 For beginners, a simple [**“Hello World” example**](https://docs.vessl.ai/guides/get-started/quickstart) is recommended.
 
+### RAG API
+
+To run the server, execute the following command:
+    
+```bash
+$ cd app
+$ uvicorn main:app --reload
+```
 
 ## Copyrights
 

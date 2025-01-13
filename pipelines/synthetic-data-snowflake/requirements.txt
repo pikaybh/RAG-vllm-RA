@@ -1,5 +1,0 @@
-llama-index
-llama-index-readers-web
-html2text
-snowflake
-snowflake-ml-python

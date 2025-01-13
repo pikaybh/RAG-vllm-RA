@@ -1,6 +1,0 @@
-vessl[media]
-scikit-learn
-numpy
-pandas
-tensorflow
-keras

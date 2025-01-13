@@ -1,5 +1,0 @@
-llama-index
-transformers
-python-dotenv
-ipykernel
-openai
