@@ -145,3 +145,9 @@ class BaseLanguageModel(ABC):
 
         return search_chain | prompt | structured_output
         
+        """
+        # 체인을 인증 로직과 함께 래핑
+        final_chain = search_chain | prompt | structured_output
+        return SecureChainWrapper(final_chain)
+        """
+        

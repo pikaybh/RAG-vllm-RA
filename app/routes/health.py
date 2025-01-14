@@ -6,3 +6,5 @@ health = APIRouter(prefix="/health")
 @health.get("/")
 def health_check():
     return {"status": "ok"}
+
+__all__ = ["health"]

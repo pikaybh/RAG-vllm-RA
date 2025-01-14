@@ -1,27 +1,44 @@
-import os
+"""
+LangChain Server
+Version: 1.0
+Author: @pikaybh
+Copyright (c) 2025 SNUCEM. All rights reserved.
 
-from dotenv import load_dotenv
-from fastapi import FastAPI
+Description:
+This API server is designed to provide a robust and scalable interface utilizing LangChain's Runnable interfaces.
+"""
+
+from fastapi import APIRouter, FastAPI, Depends
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from routes import routes
+from routes import secure, public
+from private import get_user
 
-
-
-load_dotenv()
 
 # API Configuration
 app = FastAPI(
     title="LangChain Server",
-    version="1.0",
+    version="1.0.0",
     description="A simple api server using Langchain's Runnable interfaces",
+    dependencies=[Depends(get_user)]
 )
 
+router = APIRouter()
+
+@router.get("/", include_in_schema=False)
+def redirect_root_to_docs():
+    return RedirectResponse("/docs")
+
 # Include routes
-for route in routes:
+app.include_router(router)
+for route in public:
     app.include_router(route)
+for route in secure:
+    app.include_router(route, dependencies=[Depends(get_user)])
 
 # Set all CORS enabled origins
+"""
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -30,41 +47,11 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"]
 )
+"""
 
+"""
 if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(app, host="localhost", port=8000)
-    
-    """
-    To run the server, execute the following command:
-    
-    ```
-    $ uvicorn main:app --reload
-    ```
-    """
-
-"""
-add_routes(
-    app,
-    ChatOpenAI(
-        model="gpt-4o", 
-        api_key=os.getenv("OPENAI_API_KEY")
-    ),
-    path="/openai",
-)
-
-add_routes(
-    app,
-    ChatAnthropic(model="claude-3-haiku-20240307"),
-    path="/anthropic",
-)
-
-model = ChatAnthropic(model="claude-3-haiku-20240307")
-prompt = ChatPromptTemplate.from_template("tell me a joke about {topic}")
-add_routes(
-    app,
-    prompt | model,
-    path="/joke",
-)
 """

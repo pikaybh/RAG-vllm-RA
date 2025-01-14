@@ -1,4 +1,5 @@
-from .health import health
-from .v1 import v1
+from .health import *
+from .v1 import *
 
-routes = [health, v1]
+public = [health]
+secure = [v1]

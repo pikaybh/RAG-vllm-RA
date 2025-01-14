@@ -1,3 +1,3 @@
 from .prompts import *
-from .byos import *
-from .byjson import *
+from .oses import *
+from .jsons import *
