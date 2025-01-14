@@ -1,8 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from langserve import add_routes
 
-from models.llama import LlamaModel
-from models.openai import OpenAIModel
+from models import (OpenAIModel,
+                    HuggingFaceModel)
 
 
 v1 = APIRouter(prefix="/v1")
@@ -17,10 +17,15 @@ v1 = APIRouter(prefix="/v1")
 # )
 
 model = OpenAIModel(model_id="openai/gpt-4o")
-gpt_rag_chain = model.risk_assessment()
 
 add_routes(
     v1,
-    gpt_rag_chain,
+    model.ra_chain(),
     path="/openai/ra"
+)
+
+add_routes(
+    v1,
+    model.ra_chain(method="at_list"),
+    path="/openai/ra/max"
 )

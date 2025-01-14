@@ -1,65 +1,119 @@
 import os
 import yaml
-from typing import Dict, List, Optional, Tuple
+from types import MethodType
+from typing import Dict, List, Optional, Tuple, Union, Iterator
 
 # 현재 파일의 위치에서 한 단계 상위 폴더로 설정
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))  # 현재 파일의 경로
-ROOT_DIR = os.path.dirname(ROOT_DIR)  # 한 단계 상위 폴더로 이동
+SELF_DIR = os.path.dirname(os.path.abspath(__file__))  # 현재 파일의 경로
+ROOT_DIR = os.path.dirname(SELF_DIR)  # 한 단계 상위 폴더로 이동
 BASE_DIR = "templates"
 
-def build_prompt(task: str, steps: Optional[str | List[str]] = None) -> Dict[str, str] | List[Dict[str, str]]:
+
+def convert2chat(raw_data: Dict[str, Dict[str, str]]) -> Dict[str, List[Dict[str, str]]]:
     """
-    Construct prompts based on a YAML template file.
+    Convert raw prompt data into a chat-compatible format.
 
     Args:
-        task (str): The name of the task, corresponding to the YAML template file name.
-        steps (Optional[str | List[str]]): Specific steps to extract from the loaded prompts. If a string is provided,
-            it is interpreted as a single step. If a list of strings is provided, multiple steps are extracted.
+        raw_data (Dict[str, Dict[str, str]]): The raw prompt data.
 
     Returns:
-        Dict[str, str] | List[Dict[str, str]]: The prompts corresponding to the requested steps. If `steps` is None,
-        the entire prompts dictionary is returned.
-
-    Raises:
-        FileNotFoundError: If the specified YAML file does not exist.
-        KeyError: If a requested step does not exist in the prompts dictionary.
-        TypeError: If the `steps` parameter is neither a string, a list of strings, nor None.
+        Dict[str, List[Dict[str, str]]]: Chat-compatible prompt data.
     """
+    return {k: [{"role": role, "content": content} for role, content in v.items()] for k, v in raw_data.items()}
 
-    # Construct the file path for the YAML file.
-    file_path = os.path.join(ROOT_DIR, BASE_DIR, f"{task}.yaml")
 
-    # Check if the file exists before attempting to open it.
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"The specified YAML file '{file_path}' does not exist.")
-    print(file_path)
-    # Load prompts from the YAML file.
-    with open(file_path, "r", encoding="utf-8") as f:
-        prompts = yaml.safe_load(f)
 
-    if not steps:
-        return prompts
+class PromptBuilder:
+    def __init__(self, task: str, ptype: Optional[str] = "message"):
+        """
+        Initialize the PromptBuilder with a specific task and data format.
 
-    # Handle steps if it is a list.
-    if isinstance(steps, list):
+        Args:
+            task (str): The name of the task, corresponding to the YAML template file name.
+            ptype (Optional[str]): The format type for the prompts. Options are "message" or "chat".
+
+        Raises:
+            FileNotFoundError: If the specified YAML file does not exist.
+            ValueError: If an invalid `ptype` is provided.
+        """
+        self.task = task
+        self.file_path = os.path.join(ROOT_DIR, BASE_DIR, f"{task}.yaml")
+
+        # Check if the YAML file exists
+        if not os.path.exists(self.file_path):
+            raise FileNotFoundError(f"The specified YAML file '{self.file_path}' does not exist.")
+
+        # Load the YAML data
+        with open(self.file_path, "r", encoding="utf-8") as f:
+            self.raw = yaml.safe_load(f)
+
+        # Validate the ptype argument
+        if ptype not in {"message", "chat"}:
+            raise ValueError(f"Invalid ptype '{ptype}'. Expected 'message' or 'chat'.")
+
+        # Convert prompts based on the ptype
+        self.prompts = convert2chat(self.raw) if ptype == "chat" else self.raw
+
+    def __getitem__(self, method: str) -> Dict[str, str]:
+        """
+        Retrieve a specific method from the prompts.
+
+        Args:
+            method (str): The method to retrieve.
+
+        Returns:
+            Dict[str, str]: The prompt corresponding to the specified method.
+
+        Raises:
+            KeyError: If the specified method does not exist.
+        """
         try:
-            return [prompts[step] for step in steps]
-        except KeyError as e:
-            raise KeyError(f"Step '{e.args[0]}' not found in the prompts for task '{task}'.")
-
-    # Handle steps if it is a string.
-    if isinstance(steps, str):
-        try:
-            return prompts[steps]
+            return self.prompts[method]
         except KeyError:
-            raise KeyError(f"Step '{steps}' not found in the prompts for task '{task}'.")
+            raise KeyError(f"Step '{method}' not found in the prompts for task '{self.task}'.")
 
-    # Raise TypeError if steps is of an unsupported type.
-    raise TypeError("The 'steps' parameter must be a string, a list of strings, or None.")
+    def __iter__(self) -> Iterator[Tuple[str, Dict[str, str]]]:
+        """
+        Make the PromptBuilder iterable over its methods.
 
+        Returns:
+            Iterator[Tuple[str, Dict[str, str]]]: An iterator over the methods and their prompts.
+        """
+        return iter(self.prompts.items())
+
+    def get_methods(self, methods: Optional[Union[str, List[str]]] = None) -> Union[Dict[str, str], List[Dict[str, str]]]:
+        """
+        Retrieve specific methods or all prompts.
+
+        Args:
+            methods (Optional[Union[str, List[str]]]): Specific methods to extract. If None, all prompts are returned.
+
+        Returns:
+            Dict[str, str] | List[Dict[str, str]]: The prompts corresponding to the requested methods.
+
+        Raises:
+            KeyError: If a requested method does not exist.
+            TypeError: If the `methods` parameter is neither a string, a list of strings, nor None.
+        """
+        if not methods:
+            return self.prompts
+
+        if isinstance(methods, list):
+            try:
+                return [self.prompts[method] for method in methods]
+            except KeyError as e:
+                raise KeyError(f"Step '{e.args[0]}' not found in the prompts for task '{self.task}'.")
+
+        if isinstance(methods, str):
+            try:
+                return self.prompts[methods]
+            except KeyError:
+                raise KeyError(f"Step '{methods}' not found in the prompts for task '{self.task}'.")
+
+        raise TypeError("The 'methods' parameter must be a string, a list of strings, or None.")
 
 def payloader(*args) -> List[Tuple[str, str]]:
     """TODO: 고쳐야 함!!! It's temporal"""
     return [(k, v) for k, v in enumerate(args)]
 
-__all__ = ["build_prompt", "payloader"]
+__all__ = ["PromptBuilder", "payloader"]
