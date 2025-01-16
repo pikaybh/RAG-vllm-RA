@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Frontend</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script defer src="{{ url_for('static', filename='js/main.js') }}"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Client Side Interface</h1>
+        <form id="postForm">
+            <label for="resource">Resource</label>
+            <input type="text" id="resource" placeholder="Enter resource path (e.g., endpoint)" required>
+
+            <label for="data">Data</label>
+            <input type="text" id="data" placeholder='Enter JSON data (e.g., {"key": "value"})' required>
+
+            <button type="submit">Send Request</button>
+        </form>
+
+        <div class="response" id="response"></div>
+    </div>
+</body>
+</html>

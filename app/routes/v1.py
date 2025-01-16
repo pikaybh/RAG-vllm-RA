@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from langserve import add_routes
 
 from models import (OpenAIModel,
@@ -22,15 +22,19 @@ model = OpenAIModel(model_id="openai/gpt-4o")
 add_routes(
     v1,
     model.ra_chain(),
-    path="/openai/ra",
-    dependencies=[Depends(get_user)]
+    path="/openai/ra"
 )
+
+# add_routes(
+#     v1,
+#     model.ra_chain(method="at_list"),
+#     path="/openai/ra/max"
+# )
 
 add_routes(
     v1,
-    model.ra_chain(method="at_list"),
-    path="/openai/ra/max",
-    dependencies=[Depends(get_user)]
+    model.kras_chain(),
+    path="/openai/kras"
 )
 
 __all__ = ["v1"]

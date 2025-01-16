@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Tuple, Union, Iterator
 # 현재 파일의 위치에서 한 단계 상위 폴더로 설정
 SELF_DIR = os.path.dirname(os.path.abspath(__file__))  # 현재 파일의 경로
 ROOT_DIR = os.path.dirname(SELF_DIR)  # 한 단계 상위 폴더로 이동
-BASE_DIR = "templates"
+BASE_DIR = os.path.join("templates", "prompts")
 
 
 def convert2chat(raw_data: Dict[str, Dict[str, str]]) -> Dict[str, List[Dict[str, str]]]:

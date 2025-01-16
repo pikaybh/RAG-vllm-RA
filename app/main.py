@@ -24,8 +24,10 @@ app = FastAPI(
     dependencies=[Depends(get_user)]
 )
 
+# Fouter Configuration
 router = APIRouter()
 
+# Redirects
 @router.get("/", include_in_schema=False)
 def redirect_root_to_docs():
     return RedirectResponse("/docs")
@@ -37,17 +39,15 @@ for route in public:
 for route in secure:
     app.include_router(route, dependencies=[Depends(get_user)])
 
-# Set all CORS enabled origins
-"""
+# CORS Configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
     expose_headers=["*"]
 )
-"""
 
 """
 if __name__ == "__main__":

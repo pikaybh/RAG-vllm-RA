@@ -2,16 +2,16 @@ import os
 import inspect
 import warnings
 from pathlib import Path
-from typing import List, Literal
 from abc import ABC, abstractmethod
 
-from pydantic import BaseModel, Field
-from langchain.prompts import ChatPromptTemplate
-from langchain_community.document_loaders import PyMuPDFLoader
-from langchain_community.vectorstores import FAISS, Chroma
+from pydantic import Field
 from langchain.chains import TransformChain
+from langchain.prompts import ChatPromptTemplate
+from langchain_community.document_loaders import CSVLoader, PyMuPDFLoader
+from langchain_community.vectorstores import FAISS, Chroma
 
-from utils import PromptBuilder, payloader, isext
+from utils import PromptBuilder, payloader, isext, get_logger
+from templates import RiskAssessmentOutput, KrasRiskAssessmentOutput
 
 
 SELF_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -19,25 +19,11 @@ ROOT_DIR = os.path.dirname(SELF_DIR)  # 한 단계 상위 폴더로 이동
 FILE_DIR = "assets"
 DB_DIR = "db"
 
+# Logger Configuration
+logger = get_logger("models.base", ROOT_DIR)
 
 # UserWarning 경고 비활성화
 warnings.filterwarnings("ignore", category=UserWarning)
-
-
-
-class RiskItem(BaseModel):
-    번호: int = Field(description="시리얼 숫자")
-    위험요소: str = Field(description="식별된 위험 요소")
-    위험성평가: str = Field(description="해당 위험 요소의 위험성 평가 결과")
-    위험도: Literal["높음", "중간", "낮음"] = Field(description="해당 위험 요소의 위험도")
-    감소대책: List[str] = Field(description="위험 요소 감소를 위해 권장되는 통제 및 제한 조치 목록")
-
-
-
-class RiskAssessmentOutput(BaseModel):
-    작업: str = Field(description="작업의 이름")
-    위험성평가표: List[RiskItem] = Field(description="각 위험 요소에 대한 위험성 평가와 통제 조치 목록")
-    기타: List[str] = Field(description="기타 제언")
 
 
 
@@ -58,6 +44,7 @@ class BaseLanguageModel(ABC):
         except ValueError:
             raise ValueError("model_id must be in the format 'organization/model_name'")
 
+    # TODO: load_ 계열 Method들 통합하여 추상화하기기
     def load_pdfs(self, path: str):
         """Sets up and initializes document loaders from the specified path.
 
@@ -87,6 +74,44 @@ class BaseLanguageModel(ABC):
 
         return documents
 
+    # TODO: load_ 계열 Method들 통합하여 추상화하기기
+    def load_csvs(self, path: str):
+        """Sets up and initializes document loaders for CSV files from the specified path.
+
+        Args:
+            path (str): The path to the directory containing CSV files.
+
+        Raises:
+            FileNotFoundError: If the directory does not exist.
+            NotADirectoryError: If the path is not a directory.
+        """
+
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"The directory '{path}' does not exist.")
+
+        if not os.path.isdir(path):
+            raise NotADirectoryError(f"'{path}' is not a directory.")
+
+        csv_paths = [os.path.join(path, csv_file) for csv_file in os.listdir(path) if csv_file.endswith('.csv')]
+
+        if not csv_paths:
+            raise FileNotFoundError(f"The directory '{path}' does not contain any CSV file.")
+
+        documents = []
+        for csv_path in csv_paths:
+            try:
+                # Specify encoding explicitly
+                loader = CSVLoader(file_path=csv_path, encoding="utf-8")
+                documents.extend(loader.load())
+            except UnicodeDecodeError as e:
+                logger.error(f"Encoding error for file: {csv_path}. Error: {e}")
+                raise
+
+            # loader = CSVLoader(csv_path)
+            # documents.extend(loader.load())
+
+        return documents
+
     def create_vectorstore(self, documents, engine: str = "faiss"):
         if engine == "faiss":
             _engine = FAISS
@@ -97,7 +122,7 @@ class BaseLanguageModel(ABC):
         
         return _engine.from_documents(documents, self.embeddings)
 
-        """
+        """TODO: db 저장할 때 계속 오류나는데 왜 그런지 알아보고 아래 코드 살리기
         __stack = inspect.stack() # 호출 스택 정보를 가져옵니다.
         __caller = __stack[1]       # 스택에서 바로 위의 호출자 정보 (현재 메서드를 호출한 메서드)
 
@@ -128,7 +153,6 @@ class BaseLanguageModel(ABC):
         def search_transform(inputs):
             # 검색 결과를 context로 변환
             relevant_docs = retriever.invoke(inputs["input"])
-            
             return {"context": "\n".join(doc.page_content for doc in relevant_docs)}
 
         search_chain = TransformChain(
@@ -145,9 +169,34 @@ class BaseLanguageModel(ABC):
 
         return search_chain | prompt | structured_output
         
-        """
-        # 체인을 인증 로직과 함께 래핑
-        final_chain = search_chain | prompt | structured_output
-        return SecureChainWrapper(final_chain)
-        """
+
+    def kras_chain(self, method: str = "kras"):
+        docucments = self.load_csvs(os.path.join(ROOT_DIR, FILE_DIR))
+        vectorstores = self.create_vectorstore(docucments)
+        retriever = vectorstores.as_retriever(search_type="similarity", search_kwargs={"k": 7})
         
+        # 검색 체인 정의
+        def search_transform(inputs):
+            # 검색 결과를 context로 변환
+            relevant_docs = retriever.invoke(inputs["input"])
+            context = "\n".join(doc.page_content for doc in relevant_docs)
+            logger.info(f"Search output (context): {context}")
+            return {"context": context}
+
+        search_chain = TransformChain(
+            input_variables=["input"],  # 입력 변수
+            output_variables=["context"],  # 출력 변수
+            transform=search_transform  # 변환 함수
+        )
+
+        template = PromptBuilder("risk assessment")[method]
+        logger.info(f"Template: {template}")
+
+        prompt = ChatPromptTemplate.from_messages(
+            template
+        )
+
+        structured_output = self.model.with_structured_output(KrasRiskAssessmentOutput)
+        logger.info(f"Structured output: {structured_output}")
+        
+        return search_chain | prompt | structured_output
