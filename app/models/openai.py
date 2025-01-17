@@ -39,17 +39,17 @@ if __name__ == "__main__":
     model = OpenAIModel(model_id="openai/gpt-4o")
 
     payload = {
-        "input": "철근 배근 작업", 
+        "topic": "철근 배근 작업", 
         # "number": 10
     }
 
     # ra_chain = model.ra_chain()
-    kras_chain = model.kras_chain()
+    kras_chain = model.kras_chain2()
     
     # API 호출 전에 실제 스키마 출력
     print("Structured output schema:", kras_chain)
 
-    response = kras_chain.invoke(payload)
+    response = kras_chain.invoke("철근 배근 작업")
 
     # 결과 출력
     response_json = dantic2json(response)

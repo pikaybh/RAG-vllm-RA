@@ -22,6 +22,19 @@ def convert2chat(raw_data: Dict[str, Dict[str, str]]) -> Dict[str, List[Dict[str
     return {k: [{"role": role, "content": content} for role, content in v.items()] for k, v in raw_data.items()}
 
 
+def convert2msg(raw_data: Dict[str, Dict[str, str]]) -> Dict[str, List[Tuple[str, str]]]:
+    """
+    Convert raw prompt data into a chat-compatible format.
+
+    Args:
+        raw_data (Dict[str, Dict[str, str]]): The raw prompt data.
+
+    Returns:
+        Dict[str, List[Dict[str, str]]]: Chat-compatible prompt data.
+    """
+    return {k: [(role, content) for role, content in v.items()] for k, v in raw_data.items()}
+
+
 
 class PromptBuilder:
     def __init__(self, task: str, ptype: Optional[str] = "message"):
@@ -52,7 +65,12 @@ class PromptBuilder:
             raise ValueError(f"Invalid ptype '{ptype}'. Expected 'message' or 'chat'.")
 
         # Convert prompts based on the ptype
-        self.prompts = convert2chat(self.raw) if ptype == "chat" else self.raw
+        if ptype == "chat":
+            self.prompts = convert2chat(self.raw)
+        elif ptype == "message":
+            self.prompts = convert2msg(self.raw)
+        else: 
+            self.prompts = self.raw
 
     def __getitem__(self, method: str) -> Dict[str, str]:
         """

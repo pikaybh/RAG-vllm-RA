@@ -7,6 +7,8 @@ from abc import ABC, abstractmethod
 from pydantic import Field
 from langchain.chains import TransformChain
 from langchain.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_community.document_loaders import CSVLoader, PyMuPDFLoader
 from langchain_community.vectorstores import FAISS, Chroma
 
@@ -112,8 +114,10 @@ class BaseLanguageModel(ABC):
 
         return documents
 
-    def create_vectorstore(self, documents, engine: str = "faiss"):
-        if engine == "faiss":
+    def create_vectorstore(self, documents, engine: str = "in-memory"):
+        if engine == "in-memory":
+            _engine = InMemoryVectorStore
+        elif engine == "faiss":
             _engine = FAISS
         elif engine == "chroma":
             _engine = Chroma
@@ -178,10 +182,11 @@ class BaseLanguageModel(ABC):
         # 검색 체인 정의
         def search_transform(inputs):
             # 검색 결과를 context로 변환
-            relevant_docs = retriever.invoke(inputs["input"])
+            _input = inputs["input"]
+            relevant_docs = retriever.invoke(_input)
             context = "\n".join(doc.page_content for doc in relevant_docs)
             logger.info(f"Search output (context): {context}")
-            return {"context": context}
+            return {"context": context, "input": _input}
 
         search_chain = TransformChain(
             input_variables=["input"],  # 입력 변수
@@ -196,7 +201,36 @@ class BaseLanguageModel(ABC):
             template
         )
 
-        structured_output = self.model.with_structured_output(KrasRiskAssessmentOutput)
+        structured_output = self.model  # .with_structured_output(KrasRiskAssessmentOutput)
         logger.info(f"Structured output: {structured_output}")
         
         return search_chain | prompt | structured_output
+
+    def kras_chain2(self, method: str = "kras"):
+        # from langchain_core.output_parsers import StrOutputParser
+        docucments = self.load_csvs(os.path.join(ROOT_DIR, FILE_DIR))
+        vectorstores = self.create_vectorstore(docucments)
+        retriever = vectorstores.as_retriever(search_type="similarity", search_kwargs={"k": 7})
+
+        template = PromptBuilder("risk assessment")[method]
+        logger.info(f"Template: {template}")
+        
+        prompt = ChatPromptTemplate.from_messages(template)
+        logger.info(f"{prompt = }")
+
+        def format_docs(docs):
+            return "\n\n".join(doc.page_content for doc in docs)
+
+        structured_output = self.model.with_structured_output(KrasRiskAssessmentOutput)
+        logger.info(f"Structured output: {structured_output}")
+        
+        chain = (
+            {"context": retriever | format_docs, "topic": RunnablePassthrough()}  # 문맥 검색기
+            | prompt
+            | structured_output
+            # | StrOutputParser()
+        )
+
+        logger.info(f"{chain = }")
+
+        return chain
