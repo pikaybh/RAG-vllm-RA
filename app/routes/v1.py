@@ -4,6 +4,7 @@ from langserve import add_routes
 from models import (OpenAIModel,
                     HuggingFaceModel)
 from private import get_user
+from templates import KrasRiskAssessmentInput
 
 
 v1 = APIRouter(prefix="/v1")
@@ -30,11 +31,18 @@ add_routes(
 #     model.ra_chain(method="at_list"),
 #     path="/openai/ra/max"
 # )
+# 
+# add_routes(
+#     v1,
+#     model.full_chain(),
+#     path="/openai/kras"
+# )
 
 add_routes(
     v1,
     model.kras_chain(),
-    path="/openai/kras"
+    path="/openai/kras",
+    input_type=KrasRiskAssessmentInput
 )
 
 __all__ = ["v1"]

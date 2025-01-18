@@ -4,10 +4,10 @@ from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_openai import OpenAIEmbeddings
 
-from models.base import BaseLanguageModel
-from utils import dantic2json
+from models import BaseLanguageModel
+from utils import dantic2json, get_logger, timer
 
-
+logger = get_logger("models.openai")
 load_dotenv()
 
 
@@ -36,21 +36,19 @@ class OpenAIModel(BaseLanguageModel):
 __all__ = ["OpenAIModel"]
 
 if __name__ == "__main__":
-    model = OpenAIModel(model_id="openai/gpt-4o")
-
-    payload = {
-        "topic": "철근 배근 작업", 
-        # "number": 10
-    }
-
-    # ra_chain = model.ra_chain()
-    kras_chain = model.kras_chain2()
+    logger.info("Starting risk assessment process...")
     
-    # API 호출 전에 실제 스키마 출력
-    print("Structured output schema:", kras_chain)
+    @timer
+    def run_assessment():
+        model = OpenAIModel(model_id="openai/gpt-4o")
+        payload = {
+            "work_type": "철근 작업",
+            "procedure": "철근 가공 및 운반"
+        }
+        full_chain = model.full_chain()
+        response = full_chain.invoke(payload)
+        return dantic2json(response)
 
-    response = kras_chain.invoke("철근 배근 작업")
+    response_json = run_assessment()
+    logger.info(f"Final response: {response_json}")
 
-    # 결과 출력
-    response_json = dantic2json(response)
-    print(response_json)

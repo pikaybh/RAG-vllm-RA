@@ -6,6 +6,8 @@ from abc import ABC, abstractmethod
 from .oses import extfomatter
 
 
+SELF_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.dirname(SELF_DIR)  # 한 단계 상위 폴더로 이동
 LOG_DIR = "logs"
 EXT = ".log"
 
@@ -114,7 +116,7 @@ class CustomLogger(logging.Logger):
         self.stream_handler_level = config.stream_handler_level  # Logging level for stream handler
 
 
-def get_logger(name: str, root: str, config: Optional[LoggerConfig] = DefaultLoggerConfig()) -> CustomLogger:
+def get_logger(name: str, root: Optional[str] = ROOT_DIR, config: Optional[LoggerConfig] = DefaultLoggerConfig()) -> CustomLogger:
     """
     Creates and configures a logger with both file and stream handlers.
 

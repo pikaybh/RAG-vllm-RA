@@ -7,13 +7,14 @@ from abc import ABC, abstractmethod
 from pydantic import Field
 from langchain.chains import TransformChain
 from langchain.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough
+from langchain_core.runnables import RunnablePassthrough, Runnable, RunnableParallel, chain
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_community.document_loaders import CSVLoader, PyMuPDFLoader
 from langchain_community.vectorstores import FAISS, Chroma
 
-from utils import PromptBuilder, payloader, isext, get_logger
+from utils import PromptBuilder, payloader, isext, get_logger, format_docs
 from templates import RiskAssessmentOutput, KrasRiskAssessmentOutput
+from utils.decorators import timer
 
 
 SELF_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -47,6 +48,7 @@ class BaseLanguageModel(ABC):
             raise ValueError("model_id must be in the format 'organization/model_name'")
 
     # TODO: load_ 계열 Method들 통합하여 추상화하기기
+    @timer
     def load_pdfs(self, path: str):
         """Sets up and initializes document loaders from the specified path.
 
@@ -77,6 +79,7 @@ class BaseLanguageModel(ABC):
         return documents
 
     # TODO: load_ 계열 Method들 통합하여 추상화하기기
+    @timer
     def load_csvs(self, path: str):
         """Sets up and initializes document loaders for CSV files from the specified path.
 
@@ -114,8 +117,9 @@ class BaseLanguageModel(ABC):
 
         return documents
 
-    def create_vectorstore(self, documents, engine: str = "in-memory"):
-        if engine == "in-memory":
+    @timer
+    def create_vectorstore(self, documents, engine: str = "inmemory"):
+        if engine == "inmemory":
             _engine = InMemoryVectorStore
         elif engine == "faiss":
             _engine = FAISS
@@ -218,9 +222,6 @@ class BaseLanguageModel(ABC):
         prompt = ChatPromptTemplate.from_messages(template)
         logger.info(f"{prompt = }")
 
-        def format_docs(docs):
-            return "\n\n".join(doc.page_content for doc in docs)
-
         structured_output = self.model.with_structured_output(KrasRiskAssessmentOutput)
         logger.info(f"Structured output: {structured_output}")
         
@@ -234,3 +235,52 @@ class BaseLanguageModel(ABC):
         logger.info(f"{chain = }")
 
         return chain
+
+    @timer
+    def full_chain(self, method: str = "full") -> Runnable:
+        # Search Manual 
+        logger.info("Loading PDF documents for manual...")
+        manual_docs = self.load_pdfs(os.path.join(ROOT_DIR, FILE_DIR))
+        manual_vectorstores = self.create_vectorstore(manual_docs)
+        manual_retriever = manual_vectorstores.as_retriever(search_type="similarity", search_kwargs={"k": 3})
+        logger.info("Manual retriever setup complete")
+        
+        # Search Reference
+        logger.info("Loading CSV documents for reference...")
+        ref_docs = self.load_csvs(os.path.join(ROOT_DIR, FILE_DIR))
+        ref_vectorstores = self.create_vectorstore(ref_docs)
+        ref_retriever = ref_vectorstores.as_retriever(search_type="similarity", search_kwargs={"k": 7})
+        logger.info("Reference retriever setup complete")
+
+        # Prompt Configuration   
+        logger.info("Setting up prompt template...")
+        prompt = ChatPromptTemplate.from_messages(PromptBuilder("risk assessment")[method])
+        logger.info(f"Prompt template: {prompt}")
+
+        # Output Configuration
+        logger.info("Configuring structured output...")
+        structured_output = self.model.with_structured_output(KrasRiskAssessmentOutput)
+
+        # Chain Configuration
+        logger.info("Building chain...")
+        chain = RunnableParallel(
+            {
+                "work_type": lambda x: x["work_type"],
+                "procedure": lambda x: x["procedure"],
+                # "manual": lambda x: format_docs(manual_retriever.get_relevant_documents(x["work_type"] + " " + x["procedure"])),
+                # "reference": lambda x: format_docs(ref_retriever.get_relevant_documents(x["work_type"] + " " + x["procedure"]))
+                "manual": lambda x: (
+                    logger.info(f"Searching manual for: {x['work_type']} {x['procedure']}"),
+                    format_docs(manual_retriever.get_relevant_documents("공종: " + x["work_type"] + " 공정: " + x["procedure"]))
+                )[1],
+                "reference": lambda x: (
+                    logger.info(f"Searching reference for: {x['work_type']} {x['procedure']}"),
+                    format_docs(ref_retriever.get_relevant_documents("공종: " + x["work_type"] + " 공정: " + x["procedure"]))
+                )[1]
+            }
+        ) | prompt | structured_output
+        logger.info("Chain setup complete")
+
+        return chain
+
+__all__ = ["BaseLanguageModel"]

@@ -15,6 +15,17 @@ T_DICT = get_unique(os.path.join(ROOT_DIR, BASE_DIR, FILE_NAME), *CLS, encoding=
 
 
 
+class KrasWorkInput(BaseModel):
+    work_type: str = Field(description="작업 공종의 이름")
+    procedure: str = Field(description="작업 공정의 이름")
+
+
+
+class KrasRiskAssessmentInput(BaseModel):
+    input: KrasWorkInput
+
+
+
 """
 class RiskItem(BaseModel):
     번호: int = Field(description="시리얼 숫자")
@@ -52,9 +63,11 @@ class RiskItem(BaseModel):
 
 
 class KrasRiskAssessmentOutput(BaseModel):
+    공종: str = Field(description="사용자가 입력한 공종의 이름")
+    공정: str = Field(description="사용자가 입력한 공정의 이름")
     작업명: str = Field(description="사용자가 입력한 작업명")
     위험성평가표: List[RiskItem] = Field(description="각 위험 요소에 대한 위험성 평가와 통제 조치 목록")
     기타: List[str] = Field(description="기타 제언")
 
 
-__all__ = ["KrasRiskAssessmentOutput"]
+__all__ = ["KrasRiskAssessmentInput", "KrasRiskAssessmentOutput"]

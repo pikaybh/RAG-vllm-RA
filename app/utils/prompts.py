@@ -134,4 +134,8 @@ def payloader(*args) -> List[Tuple[str, str]]:
     """TODO: 고쳐야 함!!! It's temporal"""
     return [(k, v) for k, v in enumerate(args)]
 
-__all__ = ["PromptBuilder", "payloader"]
+
+def format_docs(docs):
+    return "\n\n".join(doc.page_content for doc in docs)
+
+__all__ = ["PromptBuilder", "payloader", "format_docs"]
