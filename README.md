@@ -17,7 +17,7 @@ This repository contains source code for a research project conducted by [SNUCEM
 ⚠️ This is a private repository. 
 Copying, distributing, or using this code without explicit permission from the authors is prohibited. 
 
-For inquiries about this project, please contact [Byunghee Yoo](mailto:pikaybh@snu.ac.kr) or [below](#contact).
+For inquiries about this project, please contact [@pikaybh](mailto:pikaybh@snu.ac.kr) or [below](#contact).
 
 ## Getting Started
 
