@@ -15,8 +15,9 @@ This repository contains source code for a research project conducted by [SNUCEM
 ## Notice
 
 ⚠️ This is a private repository. 
-⚠️ Copying, distributing, or using this code without explicit permission from the authors is prohibited. 
-⚠️ For inquiries about this project, please contact [Byunghee Yoo](mailto:pikaybh@snu.ac.kr) or [contact](#contact) below.
+Copying, distributing, or using this code without explicit permission from the authors is prohibited. 
+
+For inquiries about this project, please contact [Byunghee Yoo](mailto:pikaybh@snu.ac.kr) or [below](#contact).
 
 ## Getting Started
 
@@ -106,7 +107,7 @@ app
 아, 귀찮다... 직관적으로 이름 지어놨으니깐, 알잘딱깔쎈 하셈
 ```
 
-이하 필요하다고 생각되는 내용 있으시면 알아서 추가해주세요.
+이하 필요하다고 생각되는 내용 있으시면 알아서 추가해주세요...
 어차피 예쁘게 정리해줘도 안 읽을거고, 결국 코딩 내가 다 하게 될 거잖아 ㅋ
 
 ## Contact
