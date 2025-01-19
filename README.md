@@ -19,6 +19,14 @@ Copying, distributing, or using this code without explicit permission from the a
 
 For inquiries about this project, please contact [@pikaybh](mailto:pikaybh@snu.ac.kr) or [below](#contact).
 
+## Todos
+
+- [ ] Frontend 구현 (Select할 수 있는 Input List를 각 회사의 API로 구현)
+- [ ] 모델 Troubleshooting 구현
+- [ ] Loader 추상화
+- [ ] 한국어 모델(EEVE) Resource 구현
+- [ ] Query 처리 구현 (잘 안되면 raw json으로 처리)
+
 ## Getting Started
 
 ### Using Vessl CLI

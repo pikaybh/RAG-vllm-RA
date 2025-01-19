@@ -130,12 +130,5 @@ class PromptBuilder:
 
         raise TypeError("The 'methods' parameter must be a string, a list of strings, or None.")
 
-def payloader(*args) -> List[Tuple[str, str]]:
-    """TODO: 고쳐야 함!!! It's temporal"""
-    return [(k, v) for k, v in enumerate(args)]
 
-
-def format_docs(docs):
-    return "\n\n".join(doc.page_content for doc in docs)
-
-__all__ = ["PromptBuilder", "payloader", "format_docs"]
+__all__ = ["PromptBuilder"]

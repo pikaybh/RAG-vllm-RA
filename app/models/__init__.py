@@ -1,3 +1,3 @@
 from .base import *
 from .openai import *
-from .llama import *
+from .huggingface import *

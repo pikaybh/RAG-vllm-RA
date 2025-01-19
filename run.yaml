@@ -18,32 +18,18 @@ import:
     git:
       url: https://github.com/pikaybh/RAG-vllm-RA.git
 run:
-  - command: |  # Install some dependencies for LLM acceleration those have conflicts with common libraries
-      apt-get update && apt-get upgrade -y
+  # Install some dependencies for LLM acceleration those have conflicts with common libraries
+  - command: apt-get update && apt-get upgrade -y
     workdir: /code
-      # pip install autoawq
-      # pip install vllm
-      # pip install flash-attn
-  - command: |
-      python run.py
-    workdir: /code/runs/rag-api
-  # - command: |  # python -m vllm.entrypoints.openai.api_server --model $MODEL_NAME --dtype auto --gpu-memory-utilization 0.8 &
-  #     python -m vllm.entrypoints.openai.api_server \
-  #       --model $MODEL_NAME \
-  #       --max-model-len 2048 \
-  #       --tensor-parallel-size 2
-  #   workdir: /code
-  # - command: |
-  #     pip install -r requirements.txt
-  #   workdir: /code/runs/rag-api
-  # - command: |
-  #     python app.py --llm-host http://localhost:8000/v1
-  #   workdir: /code/runs/rag-api
+  - command: pip install -r requirements.txt
+    workdir: /code/
+  - command: uvicorn main:app --reload --host 0.0.0.0 --port 8000
+    workdir: /code/app/
 ports:
   # - name: api
   #   type: http
   #   port: 7860
-  - name: vllm
+  - name: api
     type: http
     port: 8000
 env:

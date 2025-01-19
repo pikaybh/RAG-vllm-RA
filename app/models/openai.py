@@ -1,4 +1,6 @@
 import os
+import logging
+from typing import Optional
 
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
@@ -13,11 +15,11 @@ load_dotenv()
 
 
 class OpenAIModel(BaseLanguageModel):
-    def __init__(self, model_id: str):
-        super().__init__(model_id)
+    def __init__(self, model_id: str, logger: Optional[logging.Logger] = logger, api_key: Optional[str] = None):
+        super().__init__(model_id, logger)
 
         # Secret Key
-        __sk = os.getenv("OPENAI_API_KEY")
+        __sk = os.getenv("OPENAI_API_KEY") or api_key
 
         # Initialize Engine
         self.model = ChatOpenAI(
@@ -45,8 +47,8 @@ if __name__ == "__main__":
             "work_type": "철근 작업",
             "procedure": "철근 가공 및 운반"
         }
-        full_chain = model.full_chain()
-        response = full_chain.invoke(payload)
+        ra_chain = model.silent_ra_chain()
+        response = ra_chain.invoke(payload)
         return dantic2json(response)
 
     response_json = run_assessment()

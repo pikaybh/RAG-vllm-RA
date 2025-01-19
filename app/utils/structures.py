@@ -2,9 +2,6 @@ from typing import Dict, List, Sequence, Union
 import pandas as pd
 
 
-__all__ = ["BYPandas", "get_unique"]
-
-
 
 class BYPandas:
     @staticmethod
@@ -62,6 +59,9 @@ def get_unique(path: str, *args: Union[Sequence[str], str], **kwargs) -> Union[D
         return helper(args[0])
     else:
         return {arg: helper(arg) for arg in args}
+
+
+__all__ = ["BYPandas", "get_unique"]
 
 if __name__ == "__main__":
     # Example usage

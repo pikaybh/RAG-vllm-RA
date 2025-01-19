@@ -14,13 +14,13 @@ from langchain_core.vectorstores import InMemoryVectorStore, VectorStore
 from langchain_community.document_loaders import CSVLoader, PyMuPDFLoader
 from langchain_community.vectorstores import FAISS, Chroma
 
-from structures import KrasRiskAssessmentOutput, kras_map
+from templates import KrasRiskAssessmentOutput, kras_map
 from utils import PromptBuilder, ext_map, get_logger, isext, mapper, timer
 
 
 SELF_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(SELF_DIR)  # 한 단계 상위 폴더로 이동
-DOC_DIR = "assets"
+FILE_DIR = "assets"
 DB_DIR = "db"
 
 # Logger Configuration
@@ -49,12 +49,6 @@ class BaseLanguageModel(ABC):
             self.organization, self.model_name = model_id.split("/")
         except ValueError:
             raise ValueError("model_id must be in the format 'organization/model_name'")
-
-    def get_docs_paths(self, name: str, docs: Optional[List[str]] = None) -> List[str]:
-        if name:
-            return [os.path.join(ROOT_DIR, DOC_DIR, name, doc) for doc in docs]
-        else:
-            return [os.path.join(ROOT_DIR, DOC_DIR, doc) for doc in docs]
 
     def _get_loader(self, path: str, encoding: Optional[str] = "utf-8", *args, **kwargs) -> Callable:
         if isext(path, *ext_map["pdf"]):
@@ -86,7 +80,7 @@ class BaseLanguageModel(ABC):
         if not os.path.isdir(path):
             raise NotADirectoryError(f"'{path}' is not a directory.")
 
-        _paths = [os.path.join(ROOT_DIR, DOC_DIR, file) for file in os.listdir(path)]
+        _paths = [os.path.join(ROOT_DIR, FILE_DIR, file) for file in os.listdir(path)]
 
         if not _paths:
             raise FileNotFoundError(f"The directory '{path}' does not contain any file.")
@@ -95,6 +89,42 @@ class BaseLanguageModel(ABC):
         for _path in _paths:
             loader = _get_loader(_path)
             documents.extend(loader.load())
+
+        return documents
+
+    # TODO: load_ 계열 Method들 통합하여 추상화하기기
+    @timer
+    def load_csvs(self, path: str):
+        """Sets up and initializes document loaders for CSV files from the specified path.
+
+        Args:
+            path (str): The path to the directory containing CSV files.
+
+        Raises:
+            FileNotFoundError: If the directory does not exist.
+            NotADirectoryError: If the path is not a directory.
+        """
+
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"The directory '{path}' does not exist.")
+
+        if not os.path.isdir(path):
+            raise NotADirectoryError(f"'{path}' is not a directory.")
+
+        csv_paths = [os.path.join(path, csv_file) for csv_file in os.listdir(path) if csv_file.endswith('.csv')]
+
+        if not csv_paths:
+            raise FileNotFoundError(f"The directory '{path}' does not contain any CSV file.")
+
+        documents = []
+        for csv_path in csv_paths:
+            try:
+                # Specify encoding explicitly
+                loader = CSVLoader(file_path=csv_path, encoding="utf-8")
+                documents.extend(loader.load())
+            except UnicodeDecodeError as e:
+                logger.error(f"Encoding error for file: {csv_path}. Error: {e}")
+                raise ValueError(f"Encoding error for file: {csv_path}. Error: {e}")
 
         return documents
 
@@ -195,37 +225,112 @@ class BaseLanguageModel(ABC):
         
         return RunnableLambda(structured_output)
 
-    #########################################################################################################
-    #
-    #
-    #               
-    #   Chains
-    #
-    #
-    #
-    #
-    #########################################################################################################
+    @timer
+    def ra_chain(self, method: str = "init") -> Runnable:
+        """Configures the RAG risk assessment processing chain.
+        
+        Creates a processing chain that:
+        1. Routes the input type using type_router
+        2. Processes work information and retrieves relevant documents in parallel
+        3. Formats the results using the prompt template
+        4. Structures the output into the desired format
+        
+        The chain expects input in the format:
+            ```json
+            {
+                "work_type": str,
+                "procedure": str
+            }
+            ```
+        
+        The chain expects input in the format on server:
+            ```python
+            class KrasRiskAssessmentInput(BaseModel):
+                work_type: str = Field(description="작업 공종의 이름")
+                procedure: str = Field(description="작업 공정의 이름")
+            ```
+        
+        The chain returns the following output:
+            ```python
+            class RiskItem(BaseModel):
+                번호: int = Field(description="시리얼 숫자")
+                공종: str = Field(description="작업 공종의 이름")
+                공정: str = Field(description="작업 공정의 이름")
+                공정설명: str = Field(description="작업 공정 설명")
+                설비: str = Field(description="작업에 사용되는 설비 이름")
+                물질: str = Field(description="작업 과정에서 취급되는 물질 이름")
+                유해위험요인_분류: str = Field(description="유해 또는 위험 요인의 분류")
+                유해위험요인_원인: str = Field(description="유해 또는 위험 요인의 발생 원인")
+                유해위험요인: str = Field(description="유해 또는 위험 요인의 상세")
+                관련근거: str = Field(description="관련된 근거 법령")
+                위험_가능성: str = Field(description="위험이 발생할 가능성")
+                위험_중대성: str = Field(description="위험이 미치는 영향의 심각성")
+                위험성: str = Field(description="해당 위험 요소의 위험도")
+                감소대책: List[str] | str = Field(description="위험 요소 감소를 위해 권장되는 통제 및 제한 조치 목록")
+
+            class KrasRiskAssessmentOutput(BaseModel):
+                공종: str = Field(description="사용자가 입력한 공종의 이름")
+                공정: str = Field(description="사용자가 입력한 공정의 이름")
+                작업명: str = Field(description="사용자가 입력한 작업명")
+                위험성평가표: List[RiskItem] = Field(description="각 위험 요소에 대한 위험성 평가와 통제 조치 목록")
+                기타: List[str] = Field(description="기타 제언")
+            ``` 
+        
+        Returns:
+            A chain that processes construction work information and returns
+            structured risk assessment results.
+        """
+
+        # Retriever Configuration for Searching Manual 
+        manual_docs = self.load_pdfs(os.path.join(ROOT_DIR, FILE_DIR))
+        manual_vectorstores = self.create_vectorstore(manual_docs)
+        manual_retriever = self.create_retriever(manual_vectorstores, input_map=kras_map, search_type="similarity", search_kwargs={"k": 3})
+        
+        # Retriever Configuration for Searching Reference
+        ref_docs = self.load_csvs(os.path.join(ROOT_DIR, FILE_DIR))
+        ref_vectorstores = self.create_vectorstore(ref_docs)
+        ref_retriever = self.create_retriever(ref_vectorstores, input_map=kras_map, search_type="similarity", search_kwargs={"k": 7})
+
+        # Formatter Configuration
+        formatter = self.create_formatter()
+
+        # Prompt Configuration   
+        prompt = self.create_prompt("risk assessment", method)
+
+        # Output Configuration
+        structured_output = self.create_structured_output(KrasRiskAssessmentOutput)
+
+        # Chain Configuration
+        chain = (
+            RunnableParallel(
+                {
+                    "work_type": lambda x: x["work_type"],      # 공종
+                    "procedure": lambda x: x["procedure"],      # 공정
+                    "manual": manual_retriever | formatter,     # 매뉴얼
+                    "reference": ref_retriever | formatter,     # 유사 작업
+                }
+            ) 
+            | prompt 
+            | structured_output
+        )
+
+        return chain
+
     def silent_ra_chain(self, method: str = "init") -> Runnable:
 
         # Retriever Configuration for Searching Manual 
-        manual_path = os.path.join(ROOT_DIR, DOC_DIR, "2023년도 위험성평가 및 안전보건관리체계 우수사례집.pdf")
+        manual_path = os.path.join(ROOT_DIR, FILE_DIR, "2023년도 위험성평가 및 안전보건관리체계 우수사례집.pdf")
         manual_loader = PyMuPDFLoader(manual_path)
         manual_docs = manual_loader.load()
         manual_vectorstores = InMemoryVectorStore.from_documents(manual_docs, self.embeddings)
         manual_retriever = manual_vectorstores.as_retriever(search_type="similarity", search_kwargs={"k": 3})
         
         # Retriever Configuration for Searching Reference
-        ref_path = os.path.join(ROOT_DIR, DOC_DIR, "KRAS_찬영수정_250114.csv")
+        ref_path = os.path.join(ROOT_DIR, FILE_DIR, "KRAS_찬영수정_250114.csv")
         ref_loader = CSVLoader(file_path=ref_path, encoding="utf-8")
         ref_docs = ref_loader.load()
         ref_vectorstores = InMemoryVectorStore.from_documents(ref_docs, self.embeddings)
         ref_retriever = ref_vectorstores.as_retriever(search_type="similarity", search_kwargs={"k": 7})
-
-        # Select Data
-        def select_data(key: str) -> str:
-            def _select_data(data):
-                return data[key]
-            return _select_data
 
         # Map Dictionary to String
         def dict2str(data) -> str:
@@ -246,8 +351,8 @@ class BaseLanguageModel(ABC):
         chain = (
             RunnableParallel(
                 {
-                    "work_type": select_data("work_type"),      # 공종
-                    "procedure": select_data("procedure"),      # 공정
+                    "work_type": lambda x: x["work_type"],      # 공종
+                    "procedure": lambda x: x["procedure"],      # 공정
                     "manual": dict2str | RunnablePassthrough() | manual_retriever | format_docs,     # 매뉴얼
                     "reference": dict2str | RunnablePassthrough() | ref_retriever | format_docs,     # 유사 작업
                 }
@@ -257,6 +362,5 @@ class BaseLanguageModel(ABC):
         )
 
         return chain
-
 
 __all__ = ["BaseLanguageModel"]

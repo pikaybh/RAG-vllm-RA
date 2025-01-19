@@ -1,9 +1,10 @@
 import os
 import logging
-from typing import Optional
+from functools import wraps
 from abc import ABC, abstractmethod
+from typing import Any, Callable, Optional
 
-from .oses import extfomatter
+from .extensions import extfomatter
 
 
 SELF_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -115,6 +116,55 @@ class CustomLogger(logging.Logger):
         self.stream_format = config.stream_format  # Format for stream handler messages
         self.stream_handler_level = config.stream_handler_level  # Logging level for stream handler
 
+    def _create_log_decorator(self, log_func, level: str, message_format: Optional[str] = None) -> Callable:
+        """Creates a logging decorator for the specified log level.
+        
+        Args:
+            log_func: Logging function to use (e.g., self.info, self.debug)
+            level: Name of the log level for documentation
+            message_format: Optional format string for the log message
+        """
+        def decorator(func: Callable) -> Callable:
+            @wraps(func)
+            def wrapper(*args: Any, **kwargs: Any) -> Any:
+                result = func(*args, **kwargs)
+                fmt = message_format or "{func_name}: {result}"
+                log_func(fmt.format(
+                    func_name=func.__name__,
+                    result=result,
+                    args=args,
+                    kwargs=kwargs
+                ))
+                return result
+            return wrapper
+            
+        # 소괄호 없이 사용할 경우를 위한 처리
+        return decorator if message_format else decorator
+
+    def pinfo(self, message_format: Optional[str] = None) -> Callable:
+        """Decorator that logs the output at INFO level."""
+        if isinstance(message_format, Callable):  # 소괄호 없이 사용된 경우
+            return self._create_log_decorator(self.info, "INFO")(message_format)
+        return self._create_log_decorator(self.info, "INFO", message_format)
+
+    def pdebug(self, message_format: Optional[str] = None) -> Callable:
+        """Decorator that logs the output at DEBUG level."""
+        if isinstance(message_format, Callable):
+            return self._create_log_decorator(self.debug, "DEBUG")(message_format)
+        return self._create_log_decorator(self.debug, "DEBUG", message_format)
+
+    def pwarn(self, message_format: Optional[str] = None) -> Callable:
+        """Decorator that logs the output at WARNING level."""
+        if isinstance(message_format, Callable):
+            return self._create_log_decorator(self.warning, "WARNING")(message_format)
+        return self._create_log_decorator(self.warning, "WARNING", message_format)
+
+    def perror(self, message_format: Optional[str] = None) -> Callable:
+        """Decorator that logs the output at ERROR level."""
+        if isinstance(message_format, Callable):
+            return self._create_log_decorator(self.error, "ERROR")(message_format)
+        return self._create_log_decorator(self.error, "ERROR", message_format)
+
 
 def get_logger(name: str, root: Optional[str] = ROOT_DIR, config: Optional[LoggerConfig] = DefaultLoggerConfig()) -> CustomLogger:
     """
@@ -159,4 +209,4 @@ def get_logger(name: str, root: Optional[str] = ROOT_DIR, config: Optional[Logge
     return logger
 
 
-__all__ = ["get_logger", "LoggerConfig", "DefaultLoggerConfig"]
+__all__ = ["get_logger", "LoggerConfig", "DefaultLoggerConfig", "CustomLogger"]
