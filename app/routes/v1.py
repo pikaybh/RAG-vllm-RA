@@ -4,7 +4,7 @@ from langserve import add_routes
 from models import OpenAIModel, HuggingFaceModel
 from chains import base_chains
 from private import get_user
-from structures import KrasRiskAssessmentInput
+from templates import KrasRiskAssessmentInput
 
 
 v1 = APIRouter(prefix="/v1")

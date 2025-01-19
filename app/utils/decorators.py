@@ -3,11 +3,6 @@ import logging
 from functools import wraps
 from typing import Any, Callable, Optional
 
-# from utils import get_logger
-
-
-# logger = get_logger("utils.decorators")
-
 def timer(func: Callable, logger: Optional[logging.Logger] = logging.getLogger("utils.decorators")) -> Callable:
     """Measures execution time of a function"""
     @wraps(func)

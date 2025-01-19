@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Risk Assessment API Test</title>
+    <link rel="stylesheet" href="style.css"></link>
+    <script defer src="main.js"></script>
+</head>
+<body>
+    <h2>Risk Assessment API Test</h2>
+    <div class="container">
+        <form>
+            <label for="url">Base URL:</label>
+            <input type="text" id="url" value="http://127.0.0.1" style="width: 97%;">
+            <br/>
+            <label for="port">Port:</label>
+            <input type="text" id="port" value="8000" style="width: 97%;">
+            <br/>
+            <label for="model">Model:</label>
+            <input type="text" id="model" value="openai" style="width: 97%;">
+            <br/>
+            <label for="task">Task:</label>
+            <input type="text" id="task" value="ra" style="width: 97%;">
+            <br/>
+            <label for="requestType">요청 타입:</label>
+            <select id="requestType">
+                <option value="invoke">Invoke (동기)</option>
+                <option value="batch">Batch (비동기)</option>
+                <option value="stream">Stream (실시간)</option>
+            </select>
+        </form>
+    </div>
+    <br/>
+    <h3>Request Header</h3>
+    <div class="container">
+        <form>
+            <label for="apiKey">API Key:</label>
+            <input type="text" id="apiKey" value="e54d4431-5dab-474e-b71a-0db1fcb9e659" style="width: 97%;">
+        </form>
+    </div>
+    <br/>
+    <h3>Request Body</h3>
+    <div class="container">
+        <form for="payload">
+            <label for="work_type">Work Type Payload:</label>
+            <textarea id="work_type">"철근 작업"</textarea>
+            <br/>
+            <label for="procedure">Procedure Payload:</label>
+            <textarea id="procedure">"철근 가공 및 운반"</textarea>
+        </form>
+        <!-- 버튼 부분 -->
+        <button id="submitBtn" onclick="sendRequest()">분석 시작</button>
+        <div class="spinner" id="spinner"></div>
+    </div>
+    <br/>
+    <h3>Response</h3>
+    <div class="container">
+        <label for="procedure">Response Body:</label>
+        <div id="response"></div>
+    </div>
+    <footer>
+        <p>SNUCEM Copyright 2025. All rights reserved.</p>
+    </footer>
+</body>
+</html>

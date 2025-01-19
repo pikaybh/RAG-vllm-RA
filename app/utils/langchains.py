@@ -4,7 +4,7 @@ from typing import Callable, Optional, Dict
 
 from langchain_core.retrievers import BaseRetriever
 
-from structures import kras_map
+from templates import kras_map
 
 
 def mapper(map: Dict[str, str], *args) -> str:

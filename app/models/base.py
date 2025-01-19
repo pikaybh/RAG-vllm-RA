@@ -14,7 +14,7 @@ from langchain_core.vectorstores import InMemoryVectorStore, VectorStore
 from langchain_community.document_loaders import CSVLoader, PyMuPDFLoader
 from langchain_community.vectorstores import FAISS, Chroma
 
-from structures import KrasRiskAssessmentOutput, kras_map
+from templates import KrasRiskAssessmentOutput, kras_map
 from utils import PromptBuilder, ext_map, get_logger, isext, mapper, timer
 
 

@@ -3,7 +3,7 @@ import os
 from langchain_core.runnables import Runnable
 
 from utils import timer
-from structures import BaseDocuments, KrasRiskAssessmentOutput, kras_map
+from templates import BaseDocuments, KrasRiskAssessmentOutput, kras_map
 
 
 @timer
