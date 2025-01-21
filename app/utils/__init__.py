@@ -1,3 +1,4 @@
+from .chains import *
 from .decorators import *
 from .extensions import *
 from .jsons import *

@@ -1,9 +1,23 @@
 import os
 
-from langchain_core.runnables import Runnable
+import nltk
+from langchain_core.runnables import Runnable, RunnableParallel
 
 from utils import timer
 from templates import BaseDocuments, KrasRiskAssessmentOutput, kras_map
+
+
+# Punctuation Tokenizer
+try:
+    nltk.data.find('tokenizers/punkt_tab')
+except LookupError:
+    nltk.download('punkt_tab')
+
+# Averaged Perceptron Tagger
+try:
+    nltk.data.find('taggers/averaged_perceptron_tagger_eng')
+except LookupError:
+    nltk.download('averaged_perceptron_tagger_eng')
 
 
 @timer
@@ -62,17 +76,26 @@ def ra_chain(self, method: str = "init") -> Runnable:
         structured risk assessment results.
     """
 
+    # Initialize Documents Information
+    base_docs = BaseDocuments()
+
     # Retriever Configuration for Searching Manual 
-    manual_paths = self.get_docs_paths(BaseDocuments.name, BaseDocuments.manual)
+    manual_paths = self.get_docs_paths(base_docs.name, base_docs.manual)
     manual_docs = self.load_documents(manual_paths)
     manual_vectorstores = self.create_vectorstore(manual_docs)
     manual_retriever = self.create_retriever(manual_vectorstores, input_map=kras_map, search_type="similarity", search_kwargs={"k": 3})
     
     # Retriever Configuration for Searching Reference
-    ref_paths = self.get_docs_paths(BaseDocuments.name, BaseDocuments.reference)
+    ref_paths = self.get_docs_paths(base_docs.name, base_docs.reference)
     ref_docs = self.load_documents(ref_paths)
     ref_vectorstores = self.create_vectorstore(ref_docs)
     ref_retriever = self.create_retriever(ref_vectorstores, input_map=kras_map, search_type="similarity", search_kwargs={"k": 7})
+
+    # Retriever Configuration for Searching Regulation
+    legal_paths = self.get_docs_paths(base_docs.name, base_docs.regulation)
+    legal_docs = self.load_documents(legal_paths, split_delimiter="__SPLIT__")
+    legal_vectorstores = self.create_vectorstore(legal_docs)
+    legal_retriever = self.create_retriever(legal_vectorstores, input_map=kras_map, search_type="similarity", search_kwargs={"k": 7})
 
     # Formatter Configuration
     formatter = self.create_formatter()
@@ -91,6 +114,7 @@ def ra_chain(self, method: str = "init") -> Runnable:
                 "procedure": lambda x: x["procedure"],      # 공정
                 "manual": manual_retriever | formatter,     # 매뉴얼
                 "reference": ref_retriever | formatter,     # 유사 작업
+                "related_law": legal_retriever | formatter,     # 근거 법령
             }
         ) 
         | prompt 

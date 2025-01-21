@@ -3,15 +3,16 @@ import inspect
 import logging
 import warnings
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Required
 from abc import ABC, abstractmethod
 
 from pydantic import Field
 from langchain_core.documents import Document
 from langchain.prompts import ChatPromptTemplate
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.runnables import Runnable, RunnableParallel, RunnableLambda, RunnablePassthrough
 from langchain_core.vectorstores import InMemoryVectorStore, VectorStore
-from langchain_community.document_loaders import CSVLoader, PyMuPDFLoader
+from langchain_community.document_loaders import CSVLoader, PyMuPDFLoader, JSONLoader, UnstructuredXMLLoader, TextLoader
 from langchain_community.vectorstores import FAISS, Chroma
 
 from templates import KrasRiskAssessmentOutput, kras_map
@@ -50,26 +51,47 @@ class BaseLanguageModel(ABC):
         except ValueError:
             raise ValueError("model_id must be in the format 'organization/model_name'")
 
-    def get_docs_paths(self, name: str, docs: Optional[List[str]] = None) -> List[str]:
+    def get_docs_paths(self, name: Optional[str] = None, docs: Required[List[str]] = None) -> List[str]:
         if name:
             return [os.path.join(ROOT_DIR, DOC_DIR, name, doc) for doc in docs]
         else:
             return [os.path.join(ROOT_DIR, DOC_DIR, doc) for doc in docs]
 
-    def _get_loader(self, path: str, encoding: Optional[str] = "utf-8", *args, **kwargs) -> Callable:
-        if isext(path, *ext_map["pdf"]):
+    def _get_loader(self, path: str, 
+            # CSVLoader
+            encoding: Optional[str] = "utf-8", 
+            autodetect_encoding: bool = True,
+            # JSONLoader
+            jq_schema='.', 
+            text_content=False, 
+
+            # UnstructuredXMLLoader
+            mode="single",
+            strategy="fast",
+            
+            *args, **kwargs
+        ) -> Callable:
+
+        if isext(path, "pdf"):  # if isext(path, *ext_map["pdf"]):
             return PyMuPDFLoader(path, *args, **kwargs)
-        elif isext(path, *ext_map["csv"]):
+
+        elif isext(path, "csv"):
             try:
                 return CSVLoader(path, encoding=encoding, *args, **kwargs)
             except UnicodeDecodeError as e:
                 self.logger.error(f"Encoding error for file: {path}. Error: {e}")
                 raise ValueError(f"Encoding error for file: {csv_path}. Error: {e}")
+        elif isext(path, "json"):
+            return JSONLoader(path, jq_schema=jq_schema, text_content=text_content, *args, **kwargs)  # JSON 문서에서 'content' 필드를 추출
+        elif isext(path, "txt"):
+            return TextLoader(path, encoding=encoding, autodetect_encoding=autodetect_encoding, *args, **kwargs)
+        elif isext(path, "xml"):
+            return UnstructuredXMLLoader(path, mode=mode, strategy=strategy, *args, **kwargs)
         else:
             raise ValueError(f"Unsupported file type: {path}")
 
     @timer
-    def load_documents(self, path: str | List[str]) -> List[Document]:
+    def load_documents(self, paths: str | List[str], split_delimiter: Optional[str] = None) -> List[Document]:
         """Sets up and initializes document loaders from the specified path.
 
         Args:
@@ -79,27 +101,60 @@ class BaseLanguageModel(ABC):
             FileNotFoundError: If the directory does not exist.
             NotADirectoryError: If the path is not a directory.
         """
+        if isinstance(paths, str):
+            _tmp = paths
+            paths = []
+            paths.append(_tmp)
 
-        if not os.path.exists(path):
-            raise FileNotFoundError(f"The directory '{path}' does not exist.")
+        if not paths[0]:
+            raise ValueError("paths is required")
 
-        if not os.path.isdir(path):
-            raise NotADirectoryError(f"'{path}' is not a directory.")
+        if not os.path.exists(paths[0]):
+            raise FileNotFoundError(f"The directory '{paths[0]}' does not exist.")
 
-        _paths = [os.path.join(ROOT_DIR, DOC_DIR, file) for file in os.listdir(path)]
-
-        if not _paths:
-            raise FileNotFoundError(f"The directory '{path}' does not contain any file.")
+        _paths = [os.path.join(ROOT_DIR, DOC_DIR, file) for file in paths]
 
         documents = []
         for _path in _paths:
-            loader = _get_loader(_path)
+            loader = self._get_loader(_path)
             documents.extend(loader.load())
+
+        # Split documents by delimiter
+        if split_delimiter:
+            _documents = []
+            for doc in documents:
+                _documents.extend(doc.page_content.split(split_delimiter))
+            documents = _documents
 
         return documents
 
     @timer
     def create_vectorstore(self, documents, engine: str = "inmemory"):
+        """Creates a vector store from documents.
+    
+        Args:
+            documents: List of documents or strings
+            
+        Returns:
+            VectorStore: Vector store containing the documents
+        """
+        # 문서를 적절한 크기로 분할
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,          # 각 청크의 최대 길이
+            chunk_overlap=200,        # 청크 간 중복되는 문자 수
+            length_function=len,
+            separators=["\n\n", "\n", ".", "!", "?", ",", " ", ""],  # 분할 우선순위
+            is_separator_regex=False
+        )
+        
+        
+        # 문자열 리스트인 경우 Document 객체로 변환
+        if documents and isinstance(documents[0], str):
+            documents = [Document(page_content=text) for text in documents]
+    
+            # 문서 분할
+            documents = text_splitter.split_documents(documents)
+
         if engine == "inmemory":
             return InMemoryVectorStore.from_documents(documents, self.embeddings)
         elif engine == "faiss":

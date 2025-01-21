@@ -1,8 +1,9 @@
 import os
 
 ext_map = {
-    "pdf": ("pdf"),
-    "csv": ("csv"),
+    "pdf": ("pdf", "PDF"),
+    "csv": ("csv", "CSV"),
+    "json": ("json", "JSON"),
 }
 
 def extfomatter(ext: str) -> str:
