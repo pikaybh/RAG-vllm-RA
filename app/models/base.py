@@ -1,4 +1,5 @@
 import os
+import base64
 import inspect
 import logging
 import warnings
@@ -7,11 +8,13 @@ from typing import Callable, Dict, List, Optional, Required
 from abc import ABC, abstractmethod
 
 from pydantic import Field
-from langchain_core.documents import Document
 from langchain.prompts import ChatPromptTemplate
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import Runnable, RunnableParallel, RunnableLambda, RunnablePassthrough
 from langchain_core.vectorstores import InMemoryVectorStore, VectorStore
+from langchain_community.chains import chain
 from langchain_community.document_loaders import CSVLoader, PyMuPDFLoader, JSONLoader, UnstructuredXMLLoader, TextLoader
 from langchain_community.vectorstores import FAISS, Chroma
 
@@ -239,6 +242,62 @@ class BaseLanguageModel(ABC):
             return _prompt.invoke(*args, **kwargs)
             
         return RunnableLambda(prompt)
+
+    def encode_image(self, image_path: str) -> Callable:
+        """
+        Encode image to base64
+
+        Args:
+            image_path (str): The path to the image file.
+            
+        Returns:
+            str: The base64 encoded image string.
+        """
+        with open(image_path, "rb") as image_file:
+            img_bytes = base64.b64encode(image_file.read()).decode("utf-8")
+
+        return f"data:image/jpeg;base64,{img_bytes}"
+
+    @chain
+    def vision_chain(self, inputs):
+        """
+        TODO: 비전 input 구현할 것.
+            지금은 아프고 귀찮아서 
+            못하겠어요. 히읗
+            ref: https://teddylee777.github.io/langchain/langchain-code-generator/
+        """
+        image_path, url = str(inputs["image_path"]), bool(inputs["url"])
+        if url:
+            image_url = image_path
+        else:
+            base64_image = self.encode_image(image_path)
+            image_url = f"{base64_image}"
+        system_message = SystemMessage(
+            content=[
+                """Write some python code to solve the user's problem. 
+
+                Return only python code in Markdown format, e.g.:
+
+                ```python
+                ....
+                ```"""
+            ]
+        )
+        vision_message = HumanMessage(
+            content=[
+                {"type": "text", "text": "Can you write a python code to draw this plot?"},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": image_url,
+                        "detail": "auto",
+                    },
+                },
+            ]
+        )
+        output = self.model.invoke([system_message, vision_message])
+
+        return output.content
 
     @timer
     def create_structured_output(self, output: str) -> Callable:
