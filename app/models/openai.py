@@ -58,7 +58,8 @@ if __name__ == "__main__":
         }
 
         # Initialize Chain
-        ra_chain = model.ra_chain()
+        # ra_chain = model.ra_chain()
+        ra_chain = model.cl_chain()
 
         # Run Chain
         response = ra_chain.invoke(payload)

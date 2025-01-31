@@ -2,6 +2,7 @@ import os
 import base64
 import inspect
 import logging
+import pathlib
 import warnings
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Required
@@ -14,7 +15,7 @@ from langchain_core.documents import Document
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import Runnable, RunnableParallel, RunnableLambda, RunnablePassthrough
 from langchain_core.vectorstores import InMemoryVectorStore, VectorStore
-from langchain_community.chains import chain
+# from langchain_community.chains import chain
 from langchain_community.document_loaders import CSVLoader, PyMuPDFLoader, JSONLoader, UnstructuredXMLLoader, TextLoader
 from langchain_community.vectorstores import FAISS, Chroma
 
@@ -26,6 +27,7 @@ SELF_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(SELF_DIR)  # 한 단계 상위 폴더로 이동
 DOC_DIR = "assets"
 DB_DIR = "db"
+
 
 # Logger Configuration
 logger = get_logger("models.base", ROOT_DIR)
@@ -131,6 +133,20 @@ class BaseLanguageModel(ABC):
 
         return documents
 
+    
+    @timer
+    def load_vectorstore(self, db_path: str, engine: str = "faiss"):
+        _path = str(pathlib.Path(DB_DIR, db_path))
+
+        self.logger.info(f"{_path = }")
+
+        if engine == "faiss":
+            return FAISS.load_local(_path, self.embeddings, allow_dangerous_deserialization=True)
+        elif engine == "chroma":
+            return Chroma.load_local(_path, self.embeddings, allow_dangerous_deserialization=True)
+        else:
+            raise ValueError(f"{engine} not found. Supported engines = ['faiss', 'chroma']")
+
     @timer
     def create_vectorstore(self, documents, engine: str = "inmemory"):
         """Creates a vector store from documents.
@@ -172,13 +188,15 @@ class BaseLanguageModel(ABC):
         __stack = inspect.stack()   # 호출 스택 정보를 가져옵니다.
         __caller = __stack[1]       # 스택에서 바로 위의 호출자 정보 (현재 메서드를 호출한 메서드)
 
-        db_path = os.path.join(
-            ROOT_DIR, 
+        db_path = str(pathlib.Path(
+            # ROOT_DIR, 
             DB_DIR,
             self.organization,
             __caller.function[:-6], 
             engine
-        )
+        ))
+
+        self.logger.info(f"{db_path = }")
 
         if not os.path.exists(db_path):
             Path(db_path).mkdir(parents=True, exist_ok=True)
@@ -258,6 +276,7 @@ class BaseLanguageModel(ABC):
 
         return f"data:image/jpeg;base64,{img_bytes}"
 
+    '''
     @chain
     def vision_chain(self, inputs):
         """
@@ -298,6 +317,7 @@ class BaseLanguageModel(ABC):
         output = self.model.invoke([system_message, vision_message])
 
         return output.content
+    '''
 
     @timer
     def create_structured_output(self, output: str) -> Callable:
@@ -310,14 +330,15 @@ class BaseLanguageModel(ABC):
         return RunnableLambda(structured_output)
 
     #########################################################################################################
-    #
-    #
-    #               
-    #   Chains
-    #
-    #
-    #
-    #
+    #                                                                                                       #
+    #                                                                                                       #
+    #                                                                                                       #
+    #                                                                                                       #
+    #                                              Chains                                                   #
+    #                                                                                                       #
+    #                                                                                                       #
+    #                                                                                                       #
+    #                                                                                                       #
     #########################################################################################################
     def silent_ra_chain(self, method: str = "init") -> Runnable:
 
